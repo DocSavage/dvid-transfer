@@ -181,12 +181,13 @@ func transferData(src, dst string) {
 	dsttype := dstMetadata.Base.TypeName
 
 	switch srctype {
+/*
 	case "grayscale8", "uint8blk":
 		if dsttype != "uint8blk" {
 			fmt.Printf("Can't transfer %s to %s, need uint8blk destination\n", srctype, dsttype)
 			os.Exit(1)
 		}
-
+*/
 	case "labels64":
 		if dsttype != "labelblk" {
 			fmt.Printf("Can't transfer %s to %s, need labelblk destination\n", srctype, dsttype)
