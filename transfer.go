@@ -174,6 +174,55 @@ func sendROI(src, dst *Metadata, srcUrl, dstUrl string) {
 	}
 }
 
+func sendKeyvalue(src, dst *Metadata, srcUrl, dstUrl string) {
+	// Get all the keys
+	keysUrl := srcUrl + "/keys"
+	resp, err := http.Get(keysUrl)
+	if err != nil {
+		fmt.Printf("Error on getting keys JSON: %s\n", err.Error())
+		os.Exit(1)
+	}
+	if resp.StatusCode != http.StatusOK {
+		fmt.Printf("Bad status on getting keys: %d\n", resp.StatusCode)
+		os.Exit(1)
+	}
+	keysJSON, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Printf("Could not read keys JSON: %s\n", err.Error())
+		os.Exit(1)
+	}
+	keys := []string{}
+	if err := json.Unmarshal(keysJSON, &keys); err != nil {
+		fmt.Printf("Error parsing keys: %s\n", err.Error())
+		os.Exit(1)
+	}
+	fmt.Printf("Found %d keys...\n", len(keys))
+
+	for key := range keys {
+		url := fmt.Sprintf("%s/key/%s", srcUrl, key)
+		url2 := fmt.Sprintf("%s/key/%s", dstUrl, key)
+		fmt.Printf("Transfering: %s -> %s\n", url, url2)
+		resp, err := http.Get(url)
+		if err != nil {
+			fmt.Printf("Receive error: %s\n", err.Error())
+			os.Exit(1)
+		}
+		if resp.StatusCode != http.StatusOK {
+			fmt.Printf("Bad status on receiving data: %d\n", resp.StatusCode)
+			os.Exit(1)
+		}
+		resp2, err := http.Post(url2, "application/octet-stream", resp.Body)
+		if err != nil {
+			fmt.Printf("Transmit error: %s\n", err.Error())
+			os.Exit(1)
+		}
+		if resp2.StatusCode != http.StatusOK {
+			fmt.Printf("Bad status on sending data: %d\n", resp2.StatusCode)
+			os.Exit(1)
+		}
+	}
+}
+
 func transferData(src, dst string) {
 	srcMetadata := getMetadata(src)
 	dstMetadata := getMetadata(dst)
@@ -181,14 +230,14 @@ func transferData(src, dst string) {
 	dsttype := dstMetadata.Base.TypeName
 
 	switch srctype {
-/*
-	case "grayscale8", "uint8blk":
-		if dsttype != "uint8blk" {
-			fmt.Printf("Can't transfer %s to %s, need uint8blk destination\n", srctype, dsttype)
-			os.Exit(1)
-		}
-*/
-	case "labels64":
+	/*
+		case "grayscale8", "uint8blk":
+			if dsttype != "uint8blk" {
+				fmt.Printf("Can't transfer %s to %s, need uint8blk destination\n", srctype, dsttype)
+				os.Exit(1)
+			}
+	*/
+	case "labels64", "labelblk":
 		if dsttype != "labelblk" {
 			fmt.Printf("Can't transfer %s to %s, need labelblk destination\n", srctype, dsttype)
 			os.Exit(1)
@@ -201,6 +250,13 @@ func transferData(src, dst string) {
 			os.Exit(1)
 		}
 		sendROI(srcMetadata, dstMetadata, src, dst)
+
+	case "keyvalue":
+		if dsttype != "keyvalue" {
+			fmt.Printf("Can't transfer %s to %s, need keyvalue destination\n", srctype, dsttype)
+			os.Exit(1)
+		}
+		sendKeyvalue(srcMetadata, dstMetadata, src, dst)
 
 	default:
 		fmt.Printf("Cannot handle source data type %s\n", srcMetadata.Base.TypeName)
